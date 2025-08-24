@@ -1,0 +1,56 @@
+name: "Home Assistant Config Check"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+    types: [opened, synchronize]
+
+jobs:
+  home-assistant-check:
+    runs-on: ubuntu-latest
+    name: Check Home Assistant configuration
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+    
+    - name: Home Assistant Check
+      uses: frenck/action-home-assistant@v1
+      with:
+        path: "."
+        secrets: secrets.yaml
+        version: stable
+
+  esphome-check:
+    runs-on: ubuntu-latest
+    name: Check ESPHome configurations
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install ESPHome
+      run: pip install esphome
+    
+    - name: Validate ESPHome configs
+      run: |
+        cd esphome
+        # Create a temporary secrets file for validation
+        echo "wifi_ssid: \"test_ssid\"" > secrets.yaml
+        echo "wifi_password: \"test_password\"" >> secrets.yaml
+        echo "hot_tub_api_key: \"test_api_key_32_chars_long_123456\"" >> secrets.yaml
+        echo "hot_tub_ota_password: \"test_ota_password\"" >> secrets.yaml
+        echo "hot_tub_ap_password: \"test_ap_password\"" >> secrets.yaml
+        
+        # Validate each ESPHome config
+        for config in *.yaml; do
+          if [ "$config" != "secrets.yaml" ]; then
+            echo "Validating $config..."
+            esphome config "$config" --substitution dummy_name=test
+          fi
+        done
