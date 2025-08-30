@@ -24,6 +24,11 @@ wemo:
   static:
     - 192.168.32.116
 
+# Shell commands for GitHub integration
+shell_command:
+  git_pull: 'cd /config && git pull origin main'
+  git_status: 'cd /config && git status --porcelain'
+
 # Timer helper for security lighting timeout
 timer:
   security_lights_timer:

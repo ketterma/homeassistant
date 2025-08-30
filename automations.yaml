@@ -118,3 +118,64 @@
       preview_mode: Live Preview
       notification_time: ''
       model: gemini-2.5-flash
+- id: github_main_branch_auto_deploy
+  alias: GitHub - Auto Deploy Main Branch Changes
+  description: Automatically pull and reload Home Assistant configuration when main branch is updated
+  triggers:
+  - trigger: event
+    event_type: github_push
+    event_data:
+      ref: refs/heads/main
+  conditions:
+  - condition: template
+    value_template: "{{ trigger.event.data.repository.name == 'homeassistant' }}"
+  actions:
+  - service: shell_command.git_pull
+  - delay: "00:00:05"
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: >
+          {{ trigger.event.data.commits | selectattr('modified') | 
+             selectattr('modified', 'match', '.*automations\\.yaml$') | list | length > 0 }}
+      sequence:
+      - service: automation.reload
+    - conditions:
+      - condition: template
+        value_template: >
+          {{ trigger.event.data.commits | selectattr('modified') | 
+             selectattr('modified', 'match', '.*scripts\\.yaml$') | list | length > 0 }}
+      sequence:
+      - service: script.reload
+    - conditions:
+      - condition: template
+        value_template: >
+          {{ trigger.event.data.commits | selectattr('modified') | 
+             selectattr('modified', 'match', '.*scenes\\.yaml$') | list | length > 0 }}
+      sequence:
+      - service: scene.reload
+    - conditions:
+      - condition: template
+        value_template: >
+          {{ trigger.event.data.commits | selectattr('modified') | 
+             selectattr('modified', 'match', '.*configuration\\.yaml$') | list | length > 0 }}
+      sequence:
+      - service: homeassistant.check_config
+      - delay: "00:00:03"
+      - service: homeassistant.reload_core_config
+    - conditions:
+      - condition: template
+        value_template: >
+          {{ trigger.event.data.commits | selectattr('modified') | 
+             selectattr('modified', 'match', '.*/themes/.*\\.yaml$') | list | length > 0 }}
+      sequence:
+      - service: frontend.reload_themes
+  - service: persistent_notification.create
+    data:
+      title: "🚀 Configuration Deployed"
+      message: >
+        Successfully deployed latest configuration from GitHub.
+        Commit: {{ trigger.event.data.head_commit.message }}
+        Author: {{ trigger.event.data.head_commit.author.name }}
+      notification_id: github_deployment
+  mode: single
