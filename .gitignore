@@ -4,6 +4,7 @@
 
 # Tracked by HACS
 custom_components/
+!custom_components/config_updater/
 www/community/
 .storage
 
