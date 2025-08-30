@@ -24,10 +24,18 @@ wemo:
   static:
     - 192.168.32.116
 
+# Webhook integration for GitHub repository events
+webhook:
+
+# Shell commands for Git operations and config management
+shell_command:
+  git_pull: 'cd /config && git pull origin main'
+  git_status: 'cd /config && git status --porcelain'
+  check_config: 'cd /config && hass --script check_config'
+
 # Timer helper for security lighting timeout
 timer:
   security_lights_timer:
     duration: "00:05:00"
     name: "Security Lights Timer"
     icon: mdi:timer-outline
-    

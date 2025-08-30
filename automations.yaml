@@ -118,3 +118,114 @@
       preview_mode: Live Preview
       notification_time: ''
       model: gemini-2.5-flash
+- id: github_config_auto_deploy
+  alias: "GitHub Config - Auto Deploy (Event-Driven)"
+  description: "Automatically deploy Home Assistant configuration when main branch is updated via GitHub webhook"
+  triggers:
+  - trigger: webhook
+    webhook_id: "homeassistant_config_webhook"
+    local_only: false
+  conditions:
+  # Only process pushes to main branch of homeassistant repository  
+  - condition: template
+    value_template: >
+      {{ trigger.json.ref == 'refs/heads/main' and 
+         trigger.json.repository.name == 'homeassistant' }}
+  # Only proceed if configuration files were modified
+  - condition: template  
+    value_template: >
+      {% set config_files = ['configuration.yaml', 'automations.yaml', 'scripts.yaml', 'scenes.yaml'] %}
+      {% set theme_pattern = 'themes/' %}
+      {% set changed_files = trigger.json.commits | map(attribute='modified') | sum(start=[]) + 
+                            trigger.json.commits | map(attribute='added') | sum(start=[]) %}
+      {{ changed_files | select('in', config_files) | list | length > 0 or 
+         changed_files | select('match', theme_pattern) | list | length > 0 }}
+  actions:
+  # Pull latest changes from repository
+  - service: shell_command.git_pull
+    alias: "Pull latest configuration from GitHub"
+  - delay: "00:00:05"
+  
+  # Determine which configurations need reloading based on changed files
+  - variables:
+      changed_files: >
+        {{ trigger.json.commits | map(attribute='modified') | sum(start=[]) + 
+           trigger.json.commits | map(attribute='added') | sum(start=[]) }}
+      commit_message: "{{ trigger.json.head_commit.message }}"
+      commit_sha: "{{ trigger.json.head_commit.id[:7] }}"
+      author_name: "{{ trigger.json.head_commit.author.name }}"
+
+  # Reload automations if automations.yaml changed
+  - if:
+    - condition: template
+      value_template: "{{ 'automations.yaml' in changed_files }}"
+    then:
+    - service: automation.reload
+      alias: "Reload automations"
+
+  # Reload scripts if scripts.yaml changed  
+  - if:
+    - condition: template
+      value_template: "{{ 'scripts.yaml' in changed_files }}"
+    then:
+    - service: script.reload
+      alias: "Reload scripts"
+
+  # Reload scenes if scenes.yaml changed
+  - if:
+    - condition: template
+      value_template: "{{ 'scenes.yaml' in changed_files }}"
+    then:
+    - service: scene.reload
+      alias: "Reload scenes"
+
+  # Reload themes if any theme file changed
+  - if:
+    - condition: template
+      value_template: "{{ changed_files | select('match', 'themes/') | list | length > 0 }}"
+    then:
+    - service: frontend.reload_themes
+      alias: "Reload themes"
+
+  # Check and reload core config if configuration.yaml changed
+  - if:
+    - condition: template
+      value_template: "{{ 'configuration.yaml' in changed_files }}"
+    then:
+    - service: homeassistant.check_config
+      alias: "Validate configuration"
+    - delay: "00:00:10"  
+    - service: homeassistant.reload_core_config
+      alias: "Reload core configuration"
+
+  # Create success notification with deployment details
+  - service: persistent_notification.create
+    data:
+      title: "🚀 Configuration Deployed Successfully"
+      message: >
+        **Deployment Complete**
+        
+        **Commit:** {{ commit_sha }}
+        **Author:** {{ author_name }}  
+        **Message:** {{ commit_message }}
+        
+        **Changes Applied:**
+        {% if 'configuration.yaml' in changed_files -%}
+        • Core configuration reloaded
+        {% endif -%}
+        {% if 'automations.yaml' in changed_files -%}
+        • Automations reloaded
+        {% endif -%}
+        {% if 'scripts.yaml' in changed_files -%}
+        • Scripts reloaded  
+        {% endif -%}
+        {% if 'scenes.yaml' in changed_files -%}
+        • Scenes reloaded
+        {% endif -%}
+        {% if changed_files | select('match', 'themes/') | list | length > 0 -%}
+        • Themes reloaded
+        {% endif -%}
+        
+        Deployed at {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+      notification_id: "github_deploy_success"
+  mode: single
