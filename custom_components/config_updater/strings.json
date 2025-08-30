@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configuration Updater",
+        "description": "Set up automatic configuration updates from your GitHub repository.",
+        "data": {
+          "repository": "GitHub Repository (owner/repo)",
+          "github_token": "GitHub Personal Access Token (optional)",
+          "config_path": "Home Assistant config directory path",
+          "branch": "Git branch to monitor"
+        }
+      }
+    },
+    "error": {
+      "invalid_repository_format": "Repository must be in the format 'owner/repository'"
+    }
+  },
+  "options": {
+    "step": {
+      "user": {
+        "title": "Update Configuration Updater",
+        "data": {
+          "repository": "GitHub Repository (owner/repo)",
+          "github_token": "GitHub Personal Access Token (optional)",
+          "config_path": "Home Assistant config directory path", 
+          "branch": "Git branch to monitor"
+        }
+      }
+    }
+  }
+}

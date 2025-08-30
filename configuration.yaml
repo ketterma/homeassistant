@@ -24,10 +24,16 @@ wemo:
   static:
     - 192.168.32.116
 
+# GitHub integration for repository monitoring
+github:
+  access_token: !secret github_access_token
+  repositories:
+    - path: ketterma/homeassistant
+      name: Home Assistant Config
+
 # Timer helper for security lighting timeout
 timer:
   security_lights_timer:
     duration: "00:05:00"
     name: "Security Lights Timer"
     icon: mdi:timer-outline
-    
