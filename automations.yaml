@@ -118,3 +118,65 @@
       preview_mode: Live Preview
       notification_time: ''
       model: gemini-2.5-flash
+- id: petkit_water_low_notification
+  alias: PetKit - Water Level Low Notification
+  description: Send push notification when PetKit device water level is low
+  triggers:
+  - trigger: numeric_state
+    entity_id: 
+      # Replace these with your actual PetKit water level sensor entities
+      # Example entities (uncomment and modify as needed):
+      # - sensor.petkit_water_fountain_water_level
+      # - sensor.petkit_feeder_water_level
+      # - binary_sensor.petkit_water_fountain_water_low
+    below: 20  # Trigger when water level is below 20%
+    for:
+      minutes: 5  # Wait 5 minutes to avoid spam notifications
+  conditions:
+    # Only send notifications during reasonable hours
+    - condition: time
+      after: '07:00:00'
+      before: '22:00:00'
+    # Don't send if notification was sent recently
+    - condition: template
+      value_template: >
+        {{ (now() - state_attr('automation.petkit_water_low_notification', 'last_triggered') | default(now() - timedelta(hours=2))).total_seconds() > 3600 }}
+  actions:
+  # Option 1: Use device-based notifications (similar to your existing setup)
+  - action: notify.mobile_app_device  # Replace 'device' with your actual device name
+    data:
+      title: "🚰 PetKit Water Low"
+      message: "Your pet's water fountain is running low ({{ trigger.to_state.state }}%). Please refill soon!"
+      data:
+        notification_id: "petkit_water_low"
+        tag: "petkit_water"
+        group: "pet_care"
+        actions:
+          - action: "PETKIT_REFILLED"
+            title: "Refilled"
+        priority: high
+        icon_url: "https://brands.home-assistant.io/_/petkit/icon.png"
+  # Option 2: Alternative using the default notification service
+  # Uncomment the lines below if you prefer the default service:
+  # - action: notify.notify
+  #   data:
+  #     title: "🚰 PetKit Water Low"  
+  #     message: "Your pet's water fountain is running low ({{ trigger.to_state.state }}%). Please refill soon!"
+  mode: single
+- id: petkit_water_refilled_acknowledgment
+  alias: PetKit - Water Refilled Acknowledgment
+  description: Handle acknowledgment when water is refilled
+  triggers:
+  - trigger: event
+    event_type: mobile_app_notification_action
+    event_data:
+      action: "PETKIT_REFILLED"
+  actions:
+  - action: notify.mobile_app_device  # Replace 'device' with your actual device name
+    data:
+      title: "✅ Water Refilled"
+      message: "Thank you! Your pet's water has been marked as refilled."
+      data:
+        notification_id: "petkit_water_refilled"
+        tag: "petkit_water"
+  mode: single
